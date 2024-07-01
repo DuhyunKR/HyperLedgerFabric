@@ -4,3 +4,5 @@ touch config/configtx.yaml
 touch docker/.env docker/docker-compose.yaml
 <br>
 touch startnetwork.sh createchannel.sh networkdown.sh
+<br>
+touch config/crypto-config.yaml
