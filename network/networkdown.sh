@@ -13,3 +13,4 @@ rm -rf organizations/peerOrganizations
 rm -rf system-genesis-block
 
 # channel 준비물 삭제
+rm -rf channel-artifacts
