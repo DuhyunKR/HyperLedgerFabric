@@ -5,4 +5,4 @@
 mkdir views
 
 # touch
-enrollAdmin.js invoke.js query.js registerUser.js
+enrollAdmin.js invoke.js query.js registerUser.js server.js
