@@ -7,5 +7,4 @@ mkdir network contract application
 mkdir organizations config docker
 # contract 하위폴더
 mkdir fabcar-clone
-# deployCC.sh 업데이트
-./deployCC.sh 1.1 2  <- cmd 입력
+
