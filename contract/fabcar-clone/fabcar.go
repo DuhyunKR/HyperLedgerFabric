@@ -7,7 +7,8 @@ package main
 import (
     "encoding/json"
     "fmt"
-    
+		"time"
+    "github.com/golang/protobuf/ptypes"
     "github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -22,6 +23,14 @@ type Car struct{
     Model   string `json:"model"`
     Colour  string `json:"colour"`
     Owner   string `json:"owner"`
+}
+
+// 이력 조회 결과 구조체
+type HistoryQueryResult struct{
+		Record				*Car		`json:"record"`
+		TxId					string	`json:"txid"`
+		Timestamp			time.Time	`json:"timestamp"`
+		IsDelete			bool		`json:"isdeleted"`
 }
 
 // 차종 추가
@@ -62,6 +71,70 @@ func (s *SmartContract) QueryCar(ctx contractapi.TransactionContextInterface, ca
     return car, nil
 }
 
+// 차종 전송
+func (s*SmartContract) TransferCar(ctx contractapi.TransactionContextInterface,
+carNumber string, newOwner string) error {
+		// WS 읽어오기
+		car, err := s.QueryCar(ctx, carNumber)
+
+		// 에러검사
+		if err != nil {
+			return err
+		}
+
+		// 새주인정보 업데이트
+		car.Owner = newOwner
+
+		// JSON마샬 -> 직렬화
+		carAsBytes, _ := json.Marshal(car)
+		
+		// WS 기록
+		return ctx.GetStub().PutState(carNumber, carAsBytes)
+}
+
+// 차종 이력조회
+func (s *SmartContract) GetHistoryCar(ctx contractapi.TransactionContextInterface, 
+carNumber string) ([]HistoryQueryResult, error) {
+		fmt.Printf("GetHistoryCar: ID %v", carNumber)
+		resultsIterator, err := ctx.GetStub().GetHistoryForKey(carNumber)
+		if err != nil {
+				return nil, err
+		}
+		defer resultsIterator.Close()
+
+		var records []HistoryQueryResult
+		for resultsIterator.HasNext() {
+				response, err := resultsIterator.Next()
+				if err != nil {
+						return nil, err
+				}
+
+				var car Car
+				if len(response.Value) > 0 {
+						err = json.Unmarshal(response.Value, &car)
+						if err != nil {
+								return nil, err
+						}
+				} else {
+						car = Car{}
+				}
+
+				timestamp, err := ptypes.Timestamp(response.Timestamp)
+				if err != nil {
+						return nil, err
+				}
+
+				record := HistoryQueryResult {
+						TxId:				response.TxId,
+						Timestamp:	timestamp,
+						Record:			&car,
+						IsDelete:		response.IsDelete,
+				}
+				records = append(records, record)
+		}
+
+		return records, nil
+}
 // main
 func main() {
     chaincode, err := contractapi.NewChaincode(new(SmartContract))
