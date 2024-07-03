@@ -2,19 +2,26 @@
 
 . scripts/Utils.sh
 
+if [ $# -ne 2 ]; then
+    echo "Not invalid Parameters"
+    echo "Excution format deployCC.sh (version) (sequence)"
+    echo " ex) deployCC 1.1 2"
+fi
+
 # 0. 환경설정
 export FABRIC_CFG_PATH=~/fabric-samples/config
 
 CC_NAME="basic"
 CC_SRC_PATH="../contract/fabcar-clone"
 CC_RUNTIME_LANGUAGE="golang"
-CC_VERSION="1"
+CC_VERSION=$1
 CHANNEL_NAME="mychannel"
+SEQ=$2
 
 # 1. 패키징
 infoln "Packaging Chaincode"
 set -x
-peer lifecycle chaincode package ${CC_NAME}.tar.gz \
+peer lifecycle chaincode package ${CC_NAME}_${CC_VERSION}.tar.gz \
     --path ${CC_SRC_PATH} \
     --lang ${CC_RUNTIME_LANGUAGE} \
     --label ${CC_NAME}_${CC_VERSION}
@@ -25,13 +32,13 @@ set +x
 infoln "Installing chaincode on peer0.org1.example.com"
 setOrg1
 set -x
-peer lifecycle chaincode install ${CC_NAME}.tar.gz
+peer lifecycle chaincode install ${CC_NAME}_${CC_VERSION}.tar.gz
 { set +x; } 2>/dev/null
 # 2.2 org2에 설치
 infoln "Installing chaincode on peer0.org2.example.com"
 setOrg2
 set -x
-peer lifecycle chaincode install ${CC_NAME}.tar.gz
+peer lifecycle chaincode install ${CC_NAME}_${CC_VERSION}.tar.gz
 { set +x; } 2>/dev/null
 
 # 3. 승인
@@ -58,7 +65,7 @@ peer lifecycle chaincode approveformyorg \
     --name ${CC_NAME} \
     --version ${CC_VERSION} \
     --package-id ${PACKAGE_ID} \
-    --sequence 1
+    --sequence $SEQ
 
 { set +x; } 2>/dev/null
 
@@ -79,7 +86,7 @@ peer lifecycle chaincode approveformyorg \
     --name ${CC_NAME} \
     --version ${CC_VERSION} \
     --package-id ${PACKAGE_ID} \
-    --sequence 1
+    --sequence $SEQ
 
 { set +x; } 2>/dev/null
 
@@ -100,7 +107,7 @@ peer lifecycle chaincode commit \
     --channelID $CHANNEL_NAME \
     --name ${CC_NAME} $PEER_CONN_PARMS \
     --version ${CC_VERSION} \
-    --sequence 1
+    --sequence $SEQ
 
 { set +x; } 2>/dev/null
 
@@ -118,7 +125,7 @@ peer chaincode invoke \
     -C $CHANNEL_NAME \
     -n $CC_NAME \
     $PEER_CONN_PARMS \
-    -c '{"function":"CreateCar","Args",["CAR0","BMW","Z4","WHITE","BSTUDENT"]}'
+    -c '{"function":"CreateCar","Args": ["CAR0","BMW","Z4","WHITE","BSTUDENT"]}'
 { set +x; } 2>/dev/null
 
 sleep 3
@@ -127,4 +134,27 @@ sleep 3
 infoln "TEST2 : Query the chaincode"
 set -x
 peer chaincode query -C $CHANNEL_NAME -n $CC_NAME -c '{"Args":["QueryCar","CAR0"]}'
+{ set +x; } 2>/dev/null
+
+
+# 5.3 invoke - transfercar
+infoln "TEST1 : Invoking the chaincode"
+set -x
+peer chaincode invoke \
+    -o localhost:7050 \
+    --ordererTLSHostnameOverride orderer.example.com \
+    --tls \
+    --cafile $ORDERER_CA \
+    -C $CHANNEL_NAME \
+    -n $CC_NAME \
+    $PEER_CONN_PARMS \
+    -c '{"function":"CreateCar","Args": ["CAR0","BLOCKCHAIN"]}'
+{ set +x; } 2>/dev/null
+
+sleep 3
+
+# 5.4 query - gethistorycar
+infoln "TEST2 : Query the chaincode"
+set -x
+peer chaincode query -C $CHANNEL_NAME -n $CC_NAME -c '{"Args":["GetHistoryCar","CAR0"]}'
 { set +x; } 2>/dev/null
