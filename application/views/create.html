@@ -1,1 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>fabcar prototype</title>
+<body>
 
+<h2>차량생성 페이지</h2>
+<p>차량생성에 필요한 정보를 입력하세요.</p>
+
+<form action="/car" method="post">
+  <label for="carid">차량ID:</label><br>
+  <input type="text" id="carid" name="carid"><br>
+  <label for="maker">메이커:</label><br>
+  <input type="text" id="maker" name="maker"><br>
+  <label for="model">모델:</label><br>
+  <input type="text" id="model" name="model"><br>
+  <label for="color">색상:</label><br>
+  <input type="text" id="color" name="color"><br>
+  <label for="owner">소유주:</label><br>
+  <input type="text" id="owner" name="owner"><br><br>
+  <input type="submit" value="차량생성">
+</form> 
+</body>
+</html>
