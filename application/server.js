@@ -1,118 +1,111 @@
-// ExpressJS Setup
-const path = require("path");
-const express = require("express");
-const app = express();
-var bodyParser = require("body-parser");
+// SPDX-License-Identifier: MIT
 
-// Hyperledger Bridge Setup
-const { Wallets, Gateway } = require("fabric-network");
-const fs = require("fs");
+'use strict';
 
-// load the network configuration
-const ccpPath = path.resolve(__dirname, "ccp", "connection-org1.json");
-const ccp = JSON.parse(fs.readFileSync(ccpPath, "utf8"));
+const express = require('express')
+const app = express()
+const port = 3000
 
-// Constants
-const PORT = 8080;
-const HOST = "0.0.0.0";
+const fs = require('fs')
+const path = require('path')
 
-// server start
-app.listen(PORT, HOST);
-console.log(`Running on http://${HOST}:${PORT}`);
 
-// use static file
-app.use(express.static(path.join(__dirname)));
+// fabric 연동설정 -- fabric library포함, connection 프로파일 읽기, 객체화, 지갑주소지정
+const { Gateway, Wallets } = require('fabric-network');
+const ccpPath = path.resolve(__dirname, '..', 'network', 'organizations', 'connection-org1.json')
+let ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf-8'))
+const walletPath = path.join(process.cwd(), 'wallet')
+// 익스프레스 설정 - bodyparser
+app.use(express.json())
+app.use(express.urlencoded({extended:true}))
 
-// configure app to use body-parser
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
 
-// main page routing
-app.get("/", function (req, res) {
-  res.sendFile(__dirname + "/viewpage/index.html");
-});
-app.get("/page/queryAllCars", function (req, res) {
-  res.sendFile(__dirname + "/viewpage/queryAllCars.html");
-});
-app.get("/page/queryCar", function (req, res) {
-  res.sendFile(__dirname + "/viewpage/queryCar.html");
-});
-app.get("/page/createCar", function (req, res) {
-  res.sendFile(__dirname + "/viewpage/createCar.html");
-});
-app.get("/page/changeCarOwner", function (req, res) {
-  res.sendFile(__dirname + "/viewpage/changeCarOwner.html");
-});
+app.get('/', (req,res) => {
+  res.sendFile(__dirname+'/views/index.html')
+})
+app.get('/create', (req, res) => {
+  res.sendFile(__dirname+'/views/create.html')
+})
+app.get('/query', (req, res) => {
+  res.sendFile(__dirname+'/views/query.html')
+})
 
-// api routing
-app.get("/api/queryAllCars", async function (req, res) {
-  const result = await callChainCode("queryAllCars");
-  res.json(JSON.parse(result));
-});
 
-app.post("/api/queryCar", async function (req, res) {
-  const carno = req.body.carno;
-  const result = await callChainCode("queryCar", carno);
-  res.json(JSON.parse(result));
-});
+// REST UI
+app.post('/car', async (req, res) => {
+    // 요청문서에서 param 꺼내기
+    const cid = req.body.carid;
+    const make = req.body.carmake;
+    const model = req.body.carmodel;
+    const color = req.body.carcolor;
+    const owner = req.body.carowner;
 
-app.post("/api/createCar", async function (req, res) {
-  const carno = req.body.carno;
-  const carmake = req.body.carmake;
-  const carmodel = req.body.carmodel;
-  const carcol = req.body.carcol;
-  const carowner = req.body.carowner;
+    const gateway = new Gateway();
+    try {
+        //지갑생성과 appUser사용자확인
+        const wallet = await Wallets.newFileSystemWallet(walletPath);
+        //게이트웨이 연결 -> 채널연결 -> 체인코드 객체생성
+        const identity = await wallet.get('appUser')
+        if (!identity) {
+            console.log('An identity for the user appUser does not exist in the wallet')
+            res.send('An identity for the user appUser does not exist in the wallet')
+            return;
+        }
+        await gateway.connect(ccp, { wallet, identity: 'appUser', discovery: { enabled: true, asLocalhost:true}})
+        const network = await gateway.getNetwork('mychannel')
+        const contract = network.getContract('basic')
+        
+        //트랜젝션 제출
+        await contract.submitTransaction('CreateCar', cid, make, model, color, owner)
+        console.log('Transaction has been submitted')
 
-  var args = [carno, carmake, carmodel, carcol, carowner];
-  await callChainCode("createCar", args);
-  res.status(200).json({ result: "success" });
-});
+        // 클라이언트 응답
+        res.send('Transaction has been submitted')
 
-app.post("/api/changeCarOwner", async function (req, res) {
-  const carno = req.body.carno;
-  const carowner = req.body.carowner;
+    } catch (error) {
+      console.error(`Failed to submit transaction: ${error}`);
+      res.send(`Failed to submit transaction: ${error}`)
+    } finally {
+        await gateway.disconnect();
+      }
+    }
+)
 
-  var args = [carno, carowner];
-  await callChainCode("changeCarOwner", args);
-  res.status(200).json({ result: "success" });
-});
+app.get('/car', async (req, res) => {
+    
+    // 요청문서에서 param 꺼내기
+    const cid = req.query.carid
 
-async function callChainCode(fnName, args) {
-  // Create a new file system based wallet for managing identities.
-  const walletPath = path.join(process.cwd(), "wallet");
-  const wallet = await Wallets.newFileSystemWallet(walletPath);
-  var result;
-  console.log(`Wallet path: ${walletPath}`);
+    const gateway = new Gateway();
 
-  // Check to see if we've already enrolled the user.
-  const identity = await wallet.get("appUser");
-  if (!identity) {
-    console.log('An identity for the user "appUser" does not exist in the wallet');
-    console.log("Run the registerUser.js application before retrying");
-    return;
-  }
+    try {
+        // 지갑생성과 appUser사용자확인
+        const wallet = await Wallets.newFileSystemWallet(walletPath);
+        const identity = await wallet.get('appuUser');
+        if(!identity) {
+            console.log('An identity for the user appUser does not exist');
+            res.send('An identity for the user appUser does not exist in the wallet');
+            return;
+        }
+        // 게이트웨이연결 -> 채널연결 -> 체인코드 객체생성
+        await gateway.connet(ccp, { wallet, identity: 'appUser', discovery: { enabled:true, asLocalhost: true } });
+        const network = await gateway.getNetwork('mychannel');
+        const contract = network.getContract('basic');
+        // 트랜젝션 제출
+        const result = await contract.evaluateTransaction('QueryCar', cid);
+        console.log(`Transaction has been evaluated, result is: ${result.toString()}`);
+        
+        // 클라이언트 응답
+        res.send(`Transaction has been evaluated, result is: ${result.toString()}`);
+    
+    } catch (error){
+        console.error(`Failed to evaluate transaction: ${error}`);
+        res.send(`Faild to evaluate transaction: ${error}`);
+    } finally {
+        await gateway.disconnect();
+    }
+})
 
-  // Create a new gateway for connecting to our peer node.
-  const gateway = new Gateway();
-  await gateway.connect(ccp, { wallet, identity: "appUser", discovery: { enabled: true, asLocalhost: true } });
-
-  // Get the network (channel) our contract is deployed to.
-  const network = await gateway.getNetwork("mychannel");
-
-  // Get the contract from the network.
-  const contract = network.getContract("fabcar");
-
-  // Evaluate the specified transaction.
-  if (fnName == "queryAllCars") result = await contract.evaluateTransaction(fnName);
-  else if (fnName == "queryCar") result = await contract.evaluateTransaction(fnName, args);
-  else if (fnName == "createCar") result = await contract.submitTransaction(fnName, args[0], args[1], args[2], args[3], args[4]);
-  else if (fnName == "changeCarOwner") result = await contract.submitTransaction(fnName, args[0], args[1]);
-  else result = "This function(" + fnName + ") does not exist !";
-
-  console.log(`Transaction has been evaluated, result is: ${result.toString()}`);
-
-  // Disconnect from the gateway.
-  await gateway.disconnect();
-
-  return result;
-}
+app.listen(port, () => {
+  console.log(`Fabcar app listening on port ${port}`)
+})
