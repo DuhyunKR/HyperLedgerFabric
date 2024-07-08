@@ -1,24 +1,69 @@
 <!DOCTYPE html>
 <html>
-<head>
-	<title>fabcar prototype</title>
+  <head>
+	  <title>fabcar prototype</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" 
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  </head>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" 
+        crossorigin="anonymous"></script>  
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <body>
+    <div class="container">
+        <div class="container">
+          <br>
+          <h2>차량생성 페이지</h2>
+          <p>차량생성에 필요한 정보를 입력하세요.</p>
+          
+          <!-- <form action="/car" method="post"> -->
+            <label for="carid" clss="form-label">차량ID:</label><br>
+            <input type="text" id="carid" name="carid" class="form-control"><br>
+            <label for="carmake" clss="form-label">메이커:</label><br>
+            <input type="text" id="carmaker" name="carmaker" class="form-control"><br>
+            <label for="carmodel" clss="form-label">모델:</label><br>
+            <input type="text" id="carmodel" name="carmodel" class="form-control"><br>
+            <label for="carcolor" clss="form-label">색상:</label><br>
+            <input type="text" id="carcolor" name="carcolor" class="form-control"><br>
+            <label for="carowner" clss="form-label">소유주:</label><br>
+            <input type="text" id="carowner" name="carowner" class="form-control"><br><br>
+            <!-- <input type="submit" value="차량생성"> -->
+            <button id="submit-button" class="btn btn-outline-info">차량생성</button>
+            &nbsp;&nbsp;<a href="/" class="btn btn-outline-secondary">홈으로</a>
+            <!-- </form> -->
+            <br><br>
 
-<h2>차량생성 페이지</h2>
-<p>차량생성에 필요한 정보를 입력하세요.</p>
-
-<form action="/car" method="post">
-  <label for="carid">차량ID:</label><br>
-  <input type="text" id="carid" name="carid"><br>
-  <label for="maker">메이커:</label><br>
-  <input type="text" id="maker" name="maker"><br>
-  <label for="model">모델:</label><br>
-  <input type="text" id="model" name="model"><br>
-  <label for="color">색상:</label><br>
-  <input type="text" id="color" name="color"><br>
-  <label for="owner">소유주:</label><br>
-  <input type="text" id="owner" name="owner"><br><br>
-  <input type="submit" value="차량생성">
-</form> 
+        </div>
+        <div class ="card">
+          <div class="card-header">
+              RESULT:
+          </div>
+          <div class="card-body">
+              <p id="query-result"></p>
+          </div>
+      </div>
+    </div>
 </body>
+
+<script>
+    $('#submit-button').click(() => {
+        const carid = $("#carid").val();
+        const carmake = $("#carid").val();
+        const carmodel = $("#carid").val();
+        const carcolor = $("#carid").val();
+        const carowner = $("#carid").val();
+
+        console.log("submit-button clicked ", carid, carmake, carmodel, carcolor, carowner);
+    
+        $.post('/car', {carid, carmake, carmodel, carcolor, carowner}, (data, status) => {
+            console.log(status, data);
+
+            $("#submit-result").empty();
+            $("#submit-result").append(data);
+        })   
+    })
+</script>
 </html>
