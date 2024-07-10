@@ -1,103 +1,58 @@
-<!DOCTYPE html>
-<html>
-  <head>
-		<title>fabcar prototype</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" 
-        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-	</head>
+/*
+ * Copyright IBM Corp. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" 
-      crossorigin="anonymous"></script>
-  
-      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <body>
-      <div class="container">
-          <div class="container">
-            <br>
-            <h2>차량조회 페이지</h2>
-            <p>차량조회 필요한 정보를 입력하세요</p>
+'use strict';
 
-                <label class="form-label" for="carid">차량ID</label><br>
-                <input class="form-control" type="text" id="carid" name="carid"><br><br>
-                <button id="query-button" class="btn btn-outline-info">차량조회</button>
-                &nbsp;&nbsp;&nbsp;<button id="history-button" class="btn btn-outline-info">이력조회</button>
-                &nbsp;&nbsp;&nbsp;<a href="/" class="btn btn-outline-secondary">홈으로</a>
+const { Gateway, Wallets } = require('fabric-network');
+const path = require('path');
+const fs = require('fs');
 
-            <br>
-          </div>
-      <br>
-      <div class ="card">
-          <div class="card-header">
-              RESULT:
-          </div>
-          <div class="card-body">
-              <p id="query-result"></p>
-              <table id="result_table" class="table table-hover table-dark">
-                  <thead id="result_table_head">
-                  </thead>
-                  <tbody id="result_table_body">
-                  </tbody>
-              </table>
-          </div>
-      </div>
-    </div>  
-  </body>
 
-  
-  <script>
-      $('#query-button').click(() => {
-          const carid = $('#carid').val();
-          console.log("query-button clicked ", carid);
+async function main() {
+    try {
+        // load the network configuration
+        const ccpPath = path.resolve(__dirname, '..', 'network', 'organizations','connection-org1.json');
+        const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
-          $.get('/car', {carid}, (data, status) => {
-              console.log(status, data);
+        // Create a new file system based wallet for managing identities.
+        const walletPath = path.join(process.cwd(), 'wallet');
+        const wallet = await Wallets.newFileSystemWallet(walletPath);
+        console.log(`Wallet path: ${walletPath}`);
 
-              $("#query-result").empty();
-              $("#query-result").append(data);
-          })
-      })
+        // Check to see if we've already enrolled the user.
+        const identity = await wallet.get('appUser');
+        if (!identity) {
+            console.log('An identity for the user "appUser" does not exist in the wallet');
+            console.log('Run the registerUser.js application before retrying');
+            return;
+        }
 
-      $('#history-button').click(() => {
-          const carid = $("#carid").val();
-          console.log("history-button clicked ", carid);
+        // Create a new gateway for connecting to our peer node.
+        const gateway = new Gateway();
+        await gateway.connect(ccp, { wallet, identity: 'appUser', discovery: { enabled: true, asLocalhost: true } });
 
-          $.get('/car/history', {carid}, (data, status) => {
-              console.log(status, data);
-              
-              $("#query-result").empty();
+        // Get the network (channel) our contract is deployed to.
+        const network = await gateway.getNetwork('mychannel');
 
-              $("#query-result").append('result code :'+data.result+'<br>');
+        // Get the contract from the network.
+        const contract = network.getContract('basic');
 
-              $("#query_table_head").empty();
-              $("#query-table_body").empty();
+        // Evaluate the specified transaction.
+        // queryCar transaction - requires 1 argument, ex: ('queryCar', 'CAR4')
+        // queryAllCars transaction - requires no arguments, ex: ('queryAllCars')
+        const result = await contract.evaluateTransaction('QueryCar', 'CAR100');
+        console.log(`Transaction has been evaluated, result is: ${result.toString()}`);
 
-              if(data.result == 'success') {
-                for(var i=0; i<data.content.length ; i++)
-                {
-                    $("#result_table_body").append("<tr><td>TxID:</td><td>" + data.content[i].txid + "</td></tr>");
-                    $("#result_table_body").append("<tr><td>Timestamp:</td><td>" + data.content[i].timestamp + "</td></tr>");
-                    $("#result_table_body").append("<tr><td>isDelete:</td><td>" + data.content[i].isdeleted + "</td></tr>");
+        // Disconnect from the gateway.
+        await gateway.disconnect();
+        
+    } catch (error) {
+        console.error(`Failed to evaluate transaction: ${error}`);
+        process.exit(1);
+    }
+}
 
-                    var record = "Maker: " + data.content[i].record.make + "<br>" + "Model: " + data.content[i].record.model +
-                    "<br>" + "Color: " + data.content[i].record.colour + "<br>" + "Owner: " + data.content[i].record.owner +
-                    "<br>"
-
-                    $("$result_table_body").append("<tr><td>Record:</td><td>" + record + "</td></trd>");
-                }
-              }
-              
-              {
-                $("#query-result").append(i+'<br>');
-                $("#query-result").append('txid: '+data.content[i].txid+'<br>');
-                $("#query-result").append('record: '+JSON.stringify(data.content[i].record)+'<br>');
-                $("#query-result").append('timestamp: '+data.content[i].timestamp+'<br>');
-                $("#query-result").append('isdeleted: '+data.content[i].isdeleted+'<br>');
-
-              }
-          })
-      })
-  </script>
-</html>
+main();
