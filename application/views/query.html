@@ -35,10 +35,18 @@
           </div>
           <div class="card-body">
               <p id="query-result"></p>
+              <table id="result_table" class="table table-hover table-dark">
+                  <thead id="result_table_head">
+                  </thead>
+                  <tbody id="result_table_body">
+                  </tbody>
+              </table>
           </div>
       </div>
     </div>  
   </body>
+
+  
   <script>
       $('#query-button').click(() => {
           const carid = $('#carid').val();
@@ -58,9 +66,37 @@
 
           $.get('/car/history', {carid}, (data, status) => {
               console.log(status, data);
-
+              
               $("#query-result").empty();
-              $("#query-result").append(data);
+
+              $("#query-result").append('result code :'+data.result+'<br>');
+
+              $("#query_table_head").empty();
+              $("#query-table_body").empty();
+
+              if(data.result == 'success') {
+                for(var i=0; i<data.content.length ; i++)
+                {
+                    $("#result_table_body").append("<tr><td>TxID:</td><td>" + data.content[i].txid + "</td></tr>");
+                    $("#result_table_body").append("<tr><td>Timestamp:</td><td>" + data.content[i].timestamp + "</td></tr>");
+                    $("#result_table_body").append("<tr><td>isDelete:</td><td>" + data.content[i].isdeleted + "</td></tr>");
+
+                    var record = "Maker: " + data.content[i].record.make + "<br>" + "Model: " + data.content[i].record.model +
+                    "<br>" + "Color: " + data.content[i].record.colour + "<br>" + "Owner: " + data.content[i].record.owner +
+                    "<br>"
+
+                    $("$result_table_body").append("<tr><td>Record:</td><td>" + record + "</td></trd>");
+                }
+              }
+              
+              {
+                $("#query-result").append(i+'<br>');
+                $("#query-result").append('txid: '+data.content[i].txid+'<br>');
+                $("#query-result").append('record: '+JSON.stringify(data.content[i].record)+'<br>');
+                $("#query-result").append('timestamp: '+data.content[i].timestamp+'<br>');
+                $("#query-result").append('isdeleted: '+data.content[i].isdeleted+'<br>');
+
+              }
           })
       })
   </script>
